@@ -1,6 +1,6 @@
 import unittest
 from unittest.mock import Mock, patch
-from bot.client import BinanceClient
+from trading_bot.bot.client import BinanceClient
 from requests.exceptions import HTTPError
 
 
@@ -8,7 +8,7 @@ class TestBinanceClient(unittest.TestCase):
     def setUp(self):
         self.client = BinanceClient("dummy_key", "dummy_secret")
 
-    @patch("bot.client.requests.Session.get")
+    @patch("trading_bot.bot.client.requests.Session.get")
     def test_get_server_time_success(self, mock_get):
         mock_response = Mock()
         mock_response.json.return_value = {"serverTime": 1618239081234}
@@ -17,7 +17,7 @@ class TestBinanceClient(unittest.TestCase):
         server_time = self.client.get_server_time()
         self.assertEqual(server_time, 1618239081234)
 
-    @patch("bot.client.requests.Session.get")
+    @patch("trading_bot.bot.client.requests.Session.get")
     def test_get_account_balance(self, mock_get):
         mock_response = Mock()
         mock_response.json.return_value = {
@@ -32,7 +32,7 @@ class TestBinanceClient(unittest.TestCase):
         self.assertEqual(len(balance), 1)
         self.assertEqual(balance[0]["asset"], "USDT")
 
-    @patch("bot.client.requests.Session.post")
+    @patch("trading_bot.bot.client.requests.Session.post")
     def test_place_order_success(self, mock_post):
         mock_response = Mock()
         mock_response.json.return_value = {"orderId": 12345, "status": "NEW"}
@@ -47,7 +47,7 @@ class TestBinanceClient(unittest.TestCase):
         self.assertEqual(res["orderId"], 12345)
         self.assertEqual(res["status"], "NEW")
 
-    @patch("bot.client.requests.Session.post")
+    @patch("trading_bot.bot.client.requests.Session.post")
     def test_place_order_http_error(self, mock_post):
         mock_response = Mock()
         mock_response.raise_for_status.side_effect = HTTPError("400 Bad Request")

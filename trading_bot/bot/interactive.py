@@ -1,9 +1,9 @@
 """Interactive CLI mode for the Binance Futures Testnet Trading Bot."""
 
 import questionary
-from bot.client import BinanceClient
-from bot.orders import place_order
-from bot.validators import (
+from .client import BinanceClient
+from .orders import place_order
+from .validators import (
     validate_symbol,
     validate_symbol_against_exchange,
     validate_quantity,

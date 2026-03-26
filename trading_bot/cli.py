@@ -2,15 +2,18 @@
 
 import argparse
 import os
+from pathlib import Path
 import sys
 
 from dotenv import load_dotenv
 
-from bot.client import BinanceClient
-from bot.logging_config import get_logger
-from bot.orders import place_order
+from .bot.client import BinanceClient
+from .bot.logging_config import get_logger
+from .bot.orders import place_order
 
-load_dotenv()
+_dotenv_path = Path(__file__).with_name(".env")
+# Load credentials from `trading_bot/.env` when it exists.
+load_dotenv(dotenv_path=_dotenv_path, override=False)
 
 log = get_logger(__name__)
 
@@ -20,7 +23,12 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Binance Futures Testnet Trading Bot")
     parser.add_argument("--symbol", type=str, help="e.g. BTCUSDT")
     parser.add_argument("--side", type=str, help="BUY or SELL")
-    parser.add_argument("--type", type=str, dest="order_type", help="MARKET or LIMIT")
+    parser.add_argument(
+        "--type",
+        type=str,
+        dest="order_type",
+        help="Order type: MARKET, LIMIT, STOP_MARKET, STOP_LIMIT",
+    )
     parser.add_argument("--quantity", type=float)
     parser.add_argument("--price", type=float, required=False, default=None)
     parser.add_argument("--stop-price", type=float, required=False, default=None)
@@ -31,12 +39,22 @@ def main() -> None:
     parser.add_argument(
         "--interactive", action="store_true", help="Launch interactive CLI mode"
     )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Validate inputs and show the request params without placing the order.",
+    )
+    parser.add_argument(
+        "--check-margin",
+        action="store_true",
+        help="Enable a best-effort pre-check for margin (may reject valid orders with leverage).",
+    )
 
     args = parser.parse_args()
 
     if args.interactive:
         import getpass
-        from bot.interactive import run_interactive_mode
+        from .bot.interactive import run_interactive_mode
 
         api_key = args.api_key
         api_secret = args.api_secret
@@ -64,10 +82,11 @@ def main() -> None:
         missing_args.append("--type")
     if args.quantity is None:
         missing_args.append("--quantity")
-    if not args.api_key:
-        missing_args.append("--api-key")
-    if not args.api_secret:
-        missing_args.append("--api-secret")
+    if not args.dry_run:
+        if not args.api_key:
+            missing_args.append("--api-key")
+        if not args.api_secret:
+            missing_args.append("--api-secret")
 
     if missing_args:
         parser.error(
@@ -115,7 +134,7 @@ def main() -> None:
     print("----------------------------------------")
 
     try:
-        client = BinanceClient(args.api_key, args.api_secret)
+        client = BinanceClient(args.api_key or "", args.api_secret or "")
         response = place_order(
             client=client,
             symbol=args.symbol,
@@ -124,7 +143,17 @@ def main() -> None:
             quantity=args.quantity,
             price=args.price,
             stop_price=args.stop_price,
+            dry_run=args.dry_run,
+            check_margin=args.check_margin,
         )
+
+        if args.dry_run:
+            print("🧪 Dry run only (order not placed).")
+            print("----------------------------------------")
+            print("📋 ORDER REQUEST PARAMS")
+            print("----------------------------------------")
+            print(response.get("params"))
+            return
 
         print("✅ Order placed successfully!")
         print("----------------------------------------")

@@ -64,7 +64,10 @@ class BinanceClient:
         # 2. Add signature
         params["signature"] = self._sign(params)
         # 3. Log request params
-        self.logger.debug(f"Request params: {params}")
+        masked = dict(params)
+        if "signature" in masked:
+            masked["signature"] = "***"
+        self.logger.debug(f"Request params: {masked}")
 
         max_retries = 3
         for attempt in range(max_retries):

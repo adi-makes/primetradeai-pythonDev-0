@@ -2,6 +2,7 @@
 
 import re
 from typing import Any
+from decimal import Decimal
 
 __all__ = [
     "validate_symbol_against_exchange",
@@ -46,32 +47,42 @@ def validate_quantity_precision(quantity: float, symbol: str, client: Any) -> fl
     if not lot_size:
         return quantity
 
-    min_qty = float(lot_size["minQty"])
-    step_size = float(lot_size["stepSize"])
+    min_qty = Decimal(str(lot_size["minQty"]))
+    step_size = Decimal(str(lot_size["stepSize"]))
 
-    if quantity < min_qty:
+    q = Decimal(str(quantity))
+
+    if q < min_qty:
         raise ValueError(
             f"Quantity {quantity} is less than minimum allowed ({min_qty})."
         )
 
-    # Get decimal precision from step size
-    step_str = lot_size["stepSize"].rstrip("0")
-    precision = len(step_str.split(".")[1]) if "." in step_str else 0
+    if step_size <= 0:
+        return quantity
 
-    # Needs to be a multiple of step_size. Due to floats, use string comparison or rounding.
-    q_decimal = round(quantity / step_size, 8)
-    if not q_decimal.is_integer():
+    # Needs to be a multiple of step_size.
+    steps = q / step_size
+    if steps != steps.to_integral_value():
         raise ValueError(
             f"Quantity {quantity} is not a multiple of stepSize {step_size}."
         )
 
-    return round(quantity, precision)
+    # Normalize to the step precision for stable encoding.
+    precision = abs(step_size.as_tuple().exponent)
+    if precision == 0:
+        adjusted = q.to_integral_value()
+    else:
+        quant = Decimal("1").scaleb(-precision)  # 10^-precision
+        adjusted = q.quantize(quant)
+
+    return float(adjusted)
 
 
 def validate_symbol(symbol: str) -> str:
     """Validate and normalize trading symbol."""
     symbol = symbol.strip().upper()
-    if not re.match(r"^[A-Z]{2,10}USDT$", symbol):
+    # Allow digits/underscores because Binance uses symbols like `1000PEPEUSDT`.
+    if not re.match(r"^[A-Z0-9_]{2,30}USDT$", symbol):
         raise ValueError(f"Invalid symbol '{symbol}'. Must end in USDT (e.g. BTCUSDT).")
     return symbol
 

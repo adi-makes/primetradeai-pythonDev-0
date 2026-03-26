@@ -2,6 +2,7 @@
 
 import logging
 import sys
+from pathlib import Path
 
 _configured = False
 
@@ -17,10 +18,17 @@ def _configure() -> None:
         return
 
     root_logger = logging.getLogger()
-    root_logger.setLevel(logging.DEBUG)
+    # Keep the console clean and only emit debug from our own package when needed.
+    root_logger.setLevel(logging.INFO)
 
-    # FileHandler → trading_bot.log, append mode, level DEBUG
-    file_handler = logging.FileHandler("trading_bot.log", mode="a")
+    # Reduce noise from third-party libraries.
+    logging.getLogger("urllib3").setLevel(logging.WARNING)
+    logging.getLogger("urllib3.connectionpool").setLevel(logging.WARNING)
+    logging.getLogger("requests").setLevel(logging.WARNING)
+
+    # FileHandler → trading_bot/trading_bot.log, append mode, level DEBUG
+    log_path = Path(__file__).resolve().parent.parent / "trading_bot.log"
+    file_handler = logging.FileHandler(log_path, mode="a")
     file_handler.setLevel(logging.DEBUG)
     file_handler.setFormatter(logging.Formatter(_FORMAT))
 
@@ -31,6 +39,9 @@ def _configure() -> None:
 
     root_logger.addHandler(file_handler)
     root_logger.addHandler(stream_handler)
+
+    # Allow debug-level logs from our own code into the file.
+    logging.getLogger("trading_bot").setLevel(logging.DEBUG)
 
     _configured = True
 

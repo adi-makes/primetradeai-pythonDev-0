@@ -1,5 +1,5 @@
 import unittest
-from bot.validators import (
+from trading_bot.bot.validators import (
     validate_symbol,
     validate_side,
     validate_order_type,
